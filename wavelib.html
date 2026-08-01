@@ -67,7 +67,7 @@ p { margin: .4rem 0 0; word-break: break-all; }
   background: var(--soft);
 }
 .wave-player .wave-value { display: block; margin-top: .5rem; overflow-wrap: anywhere; font-size: .85rem; }
-.wave-player .button-row { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: .4rem; margin-top: .8rem; }
+.wave-player .button-row { display: grid; grid-template-columns: 1fr 2fr 2fr 1fr; gap: .4rem; margin-top: .8rem; }
 .wave-player button { cursor: pointer; background: var(--soft); color: CanvasText; }
 .wave-player button:hover { border-color: var(--accent); }
 .wave-player .play-button { color: Canvas; border-color: var(--accent); background: var(--accent); font-weight: bold; }
@@ -620,6 +620,7 @@ sequentially.</p>
   <div class="button-row">
     <button type="button" id="wave-previous" title="Previous wave" aria-label="Previous wave">&#9664;</button>
     <button type="button" class="play-button" id="wave-play">Play</button>
+    <button type="button" class="play-button" id="wave-play-all" title="Play all waves in this section">Play All</button>
     <button type="button" id="wave-next" title="Next wave" aria-label="Next wave">&#9654;</button>
   </div>
   <label for="wave-pitch">Pitch <output class="control-value" id="wave-pitch-value">A4 · 440 Hz</output></label>
@@ -639,6 +640,7 @@ sequentially.</p>
   const canvas = document.querySelector('#wave-display');
   const waveValue = document.querySelector('#wave-value');
   const playButton = document.querySelector('#wave-play');
+  const playAllButton = document.querySelector('#wave-play-all');
   const previousButton = document.querySelector('#wave-previous');
   const nextButton = document.querySelector('#wave-next');
   const pitchSlider = document.querySelector('#wave-pitch');
@@ -893,6 +895,39 @@ sequentially.</p>
     selectWave(selectedWave.collection.waves[(index + direction + length) % length]);
   }
 
+  const PLAY_ALL_DURATION = .05;
+  const PLAY_ALL_LAST_DURATION = 4;
+
+  function makeShortBuffer(value, duration) {
+    const n = Math.max(1, Math.round(audioContext.sampleRate * duration));
+    const buffer = audioContext.createBuffer(1, n, audioContext.sampleRate);
+    const channel = buffer.getChannelData(0);
+    const samples = [...value].map(value => (parseInt(value, 16) - 7.5) / 7.5);
+    const frequency = midiFrequency(Number(pitchSlider.value));
+    const period = audioContext.sampleRate / frequency;
+    for (let i = 0; i < n; i++) {
+      channel[i] = samples[Math.floor((i / period) * 32) % 32];
+    }
+    return buffer;
+  }
+
+  function playAllCollection() {
+    if (!selectedWave || !ensureAudio()) return;
+    if (playing) stopTone();
+    audioContext.resume();
+    const waves = selectedWave.collection.waves;
+    let t = audioContext.currentTime + .02;
+    waves.forEach((entry, index) => {
+      const duration = index === waves.length - 1 ? PLAY_ALL_LAST_DURATION : PLAY_ALL_DURATION;
+      const src = audioContext.createBufferSource();
+      src.buffer = makeShortBuffer(entry.value, duration);
+      src.connect(masterGain);
+      src.start(t);
+      t += duration;
+    });
+    status.textContent = `Playing ${waves.length} waves in ${selectedWave.collection.title}`;
+  }
+
   archiveEntries();
   fillCollections();
 
@@ -911,6 +946,7 @@ sequentially.</p>
   collectionSelect.addEventListener('change', () => selectWave(collections[Number(collectionSelect.value)].waves[0]));
   waveSelect.addEventListener('change', () => selectWave(waves[Number(waveSelect.value)]));
   playButton.addEventListener('click', () => playing ? stopTone() : startTone());
+  playAllButton.addEventListener('click', playAllCollection);
   previousButton.addEventListener('click', () => adjacentWave(-1));
   nextButton.addEventListener('click', () => adjacentWave(1));
   pitchSlider.addEventListener('input', updatePitch);

@@ -71,6 +71,8 @@ p { margin: .4rem 0 0; word-break: break-all; }
 .wave-player button { cursor: pointer; background: var(--soft); color: CanvasText; }
 .wave-player button:hover { border-color: var(--accent); }
 .wave-player .play-button { color: Canvas; border-color: var(--accent); background: var(--accent); font-weight: bold; }
+.wave-player .button-row-stop { display: grid; grid-template-columns: 1fr; gap: .4rem; margin-top: .4rem; }
+.wave-player .stop-button { color: Canvas; border-color: #b03030; background: #b03030; font-weight: bold; }
 .wave-player .control-value { float: right; font-weight: normal; }
 .wave-player .status { min-height: 1.2em; margin: .7rem 0 0; opacity: .72; font-size: .8rem; }
 @media (max-width: 760px) {
@@ -623,6 +625,9 @@ sequentially.</p>
     <button type="button" class="play-button" id="wave-play-all" title="Play all waves in this section">Play All</button>
     <button type="button" id="wave-next" title="Next wave" aria-label="Next wave">&#9654;</button>
   </div>
+  <div class="button-row-stop">
+    <button type="button" class="stop-button" id="wave-stop" title="Stop any playing wave">Stop</button>
+  </div>
   <label for="wave-pitch">Pitch <output class="control-value" id="wave-pitch-value">A4 · 440 Hz</output></label>
   <input id="wave-pitch" type="range" min="33" max="81" step="1" value="69">
   <label for="wave-volume">Volume <output class="control-value" id="wave-volume-value">25%</output></label>
@@ -641,6 +646,7 @@ sequentially.</p>
   const waveValue = document.querySelector('#wave-value');
   const playButton = document.querySelector('#wave-play');
   const playAllButton = document.querySelector('#wave-play-all');
+  const stopButton = document.querySelector('#wave-stop');
   const previousButton = document.querySelector('#wave-previous');
   const nextButton = document.querySelector('#wave-next');
   const pitchSlider = document.querySelector('#wave-pitch');
@@ -657,6 +663,7 @@ sequentially.</p>
   let source = null;
   let sourceGain = null;
   let playing = false;
+  let playAllSources = [];
 
   // Keep the player near the top of the archive when the responsive layout
   // changes it from a fixed sidebar into a normal page section.
@@ -870,17 +877,25 @@ sequentially.</p>
       const oldGain = sourceGain;
       source = null;
       sourceGain = null;
+      playing = false;
       oldGain.gain.cancelScheduledValues(audioContext.currentTime);
       oldGain.gain.setValueAtTime(Math.max(oldGain.gain.value, .0001), audioContext.currentTime);
       oldGain.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + .02);
       oldSource.stop(audioContext.currentTime + .025);
     }
     if (updateState) {
-      playing = false;
       playButton.textContent = 'Play';
       playButton.setAttribute('aria-pressed', 'false');
       status.textContent = 'Stopped';
     }
+  }
+
+  function stopAllPlaying(updateState = true) {
+    stopTone(updateState);
+    playAllSources.forEach(src => {
+      try { src.stop(); } catch (err) { /* already finished */ }
+    });
+    playAllSources = [];
   }
 
   function restartTone() {
@@ -896,7 +911,7 @@ sequentially.</p>
   }
 
   const PLAY_ALL_DURATION = .05;
-  const PLAY_ALL_LAST_DURATION = 4;
+  const PLAY_ALL_LAST_DURATION = 3;
 
   function makeShortBuffer(value, duration) {
     const n = Math.max(1, Math.round(audioContext.sampleRate * duration));
@@ -913,7 +928,7 @@ sequentially.</p>
 
   function playAllCollection() {
     if (!selectedWave || !ensureAudio()) return;
-    if (playing) stopTone();
+    stopAllPlaying(false);
     audioContext.resume();
     const waves = selectedWave.collection.waves;
     let t = audioContext.currentTime + .02;
@@ -922,6 +937,8 @@ sequentially.</p>
       const src = audioContext.createBufferSource();
       src.buffer = makeShortBuffer(entry.value, duration);
       src.connect(masterGain);
+      src.onended = () => { playAllSources = playAllSources.filter(item => item !== src); };
+      playAllSources.push(src);
       src.start(t);
       t += duration;
     });
@@ -947,6 +964,7 @@ sequentially.</p>
   waveSelect.addEventListener('change', () => selectWave(waves[Number(waveSelect.value)]));
   playButton.addEventListener('click', () => playing ? stopTone() : startTone());
   playAllButton.addEventListener('click', playAllCollection);
+  stopButton.addEventListener('click', () => stopAllPlaying());
   previousButton.addEventListener('click', () => adjacentWave(-1));
   nextButton.addEventListener('click', () => adjacentWave(1));
   pitchSlider.addEventListener('input', updatePitch);

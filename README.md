@@ -14,4 +14,4 @@ Extracted and converted from
 
   
 Free to use to all. Feel free to make a PR to submit your own waves.   
-No need to credit me, if you want to say thanks buy one of my albums or carts.  
+No need to credit me, if you want to say thanks buy one of my [albums](https://beatscribe.bandcamp.com/) or [carts](https://www.etsy.com/shop/Beatscribe).  

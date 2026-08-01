@@ -25,7 +25,7 @@ No need to credit me, if you want to say thanks buy one of my [albums](https://b
 
 Special thanks to:   
 
-\[Superdisk](https://nickfa.ro/wiki/Main\_Page)  
+\-[Superdisk](https://nickfa.ro/wiki/Main\_Page)  
 
-\[Defense Mechanism](https://defensemech.com/intense-tech/)  
+\-[Defense Mechanism](https://defensemech.com/intense-tech/)  
 
